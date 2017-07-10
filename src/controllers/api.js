@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 let assert = require('assert')
 let Joi = require('joi').extend(require('joi-extension-semver'))
 let common = require('../common')
@@ -5,12 +9,14 @@ let _ = require('underscore')
 let qs = require('querystring')
 let semver = require('semver')
 let boom = require('boom')
+
 let releasesAccess = require('../releasesAccess')
+let extensionsAccess = require('../extensionsAccess')
 
 let channelNames = _.keys(common.channelData)
 let platformNames = _.keys(common.platformData)
 
-let channelPlatformParms = {
+let channelPlatformParams = {
   platform: Joi.string().required(),
   channel: Joi.string().required()
 }
@@ -19,7 +25,7 @@ let channelParams = {
   channel: Joi.string().required()
 }
 
-let channelPlatformVersionParms = {
+let channelPlatformVersionParams = {
   platform: Joi.valid(platformNames).required(),
   channel: Joi.valid(channelNames).required(),
   version: Joi.semver().valid().required()
@@ -36,11 +42,14 @@ export function setup(runtime) {
     path: '/api/1/releases/refresh',
     config: {
       auth: 'simple',
-      handler: function (request, reply) {
-        releasesAccess.readReleasesFromDatabase((err, releases) => {
-          if (err) return reply(boom.create(500, 'releases could not be read'))
+      handler: async function (request, reply) {
+        try {
+          await releasesAccess.readReleasesFromDatabase()
+          await extensionsAccess.readFromDatabase()
           reply('ok')
-        })
+        } catch (err) {
+          reply(err).code(500)
+        }
       }
     }
   }
@@ -57,7 +66,7 @@ export function setup(runtime) {
         })
       },
       validate: {
-        params: channelPlatformVersionParms
+        params: channelPlatformVersionParams
       }
     }
   }
@@ -94,7 +103,7 @@ export function setup(runtime) {
         })
       },
       validate: {
-        params: channelPlatformParms,
+        params: channelPlatformParams,
         payload: {
           notes: Joi.string().required(),
           version: Joi.semver().valid().required(),
@@ -113,7 +122,7 @@ export function setup(runtime) {
         reply(releasesAccess.all()[request.params.channel + ':' + request.params.platform])
       },
       validate: {
-        params: channelPlatformParms
+        params: channelPlatformParams
       }
     }
   }
@@ -144,5 +153,32 @@ export function setup(runtime) {
     }
   }
 
-  return [put_refresh, post_releases, put_promote, put_promote_all_platforms, get_all, get, get_latest_for_channel]
+  let put_extension = {
+    method: "PUT",
+    path: '/api/1/extensions/{channel}',
+    config: {
+      auth: 'simple',
+      handler: async (request, reply) => {
+        try {
+          var extension = _.pick(request.payload, ['id', 'version', 'hash', 'name'])
+          extension.channel = request.params.channel
+          await extensionsAccess.insertOrUpdate(extension)
+          return reply(extension)
+        } catch (err) {
+          return reply(boom.create(400, err))
+        }
+      },
+      validate: {
+        params: channelParams,
+        payload: {
+          id: Joi.string().required(),
+          version: Joi.string().required(),
+          hash: Joi.string().required(),
+          name: Joi.string().required()
+        }
+      }
+    }
+  }
+
+  return [put_refresh, post_releases, put_promote, put_promote_all_platforms, get_all, get, get_latest_for_channel, put_extension]
 }

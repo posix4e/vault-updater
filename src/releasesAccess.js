@@ -41,25 +41,22 @@ function latestForChannel (channel) {
   return channels
 }
 
-function readReleasesFromDatabase (cb) {
-  pg.query('SELECT channel, platform, version, name, pub_date, notes, preview, url FROM releases ORDER BY channel, platform', [], (err, results) => {
-    if (err) return cb(err, null)
-    var releases = _.groupBy(results.rows, (row) => {
-      return row.channel + ':' + row.platform
-    })
-    _.each(_.keys(releases), (k) => {
-      releases[k] = releases[k].map((release) => {
-        var modifiedRelease = _.pick(release, ['version', 'name', 'pub_date', 'notes', 'preview', 'url'])
-        if (!modifiedRelease.url) delete modifiedRelease.url
-        return modifiedRelease
-      }).sort(function (a, b) {
-        return semver.compare(b.version, a.version)
-      })
-    })
-    rawReleases = releases
-    console.log('Releases read from database')
-    cb(null, releases)
+async function readReleasesFromDatabase () {
+  var results = await pg.query('SELECT channel, platform, version, name, pub_date, notes, preview, url FROM releases ORDER BY channel, platform', [])
+  var releases = _.groupBy(results.rows, (row) => {
+    return row.channel + ':' + row.platform
   })
+  _.each(_.keys(releases), (k) => {
+    releases[k] = releases[k].map((release) => {
+      var modifiedRelease = _.pick(release, ['version', 'name', 'pub_date', 'notes', 'preview', 'url'])
+      if (!modifiedRelease.url) delete modifiedRelease.url
+      return modifiedRelease
+    }).sort(function (a, b) {
+      return semver.compare(b.version, a.version)
+    })
+  })
+  rawReleases = releases
+  return releases
 }
 
 function promote (channel, platform, version, notes, cb) {
