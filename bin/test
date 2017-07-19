@@ -1,0 +1,19 @@
+#!/bin/bash
+set -eu
+function assertEquals()
+{
+    echo "Running test $0"
+    msg=$1; shift
+    expected=$1; shift
+    actual=$1; shift
+    if [ "$expected" != "$actual" ]; then
+        echo "$msg EXPECTED=$expected ACTUAL=$actual"
+        exit 2
+    fi
+}
+
+# Simple end to end tests to make sure basic functionality works
+export TEST_URL="http://localhost:8192/1/releases/dev/0.8.0/winx64?accept_preview=true"
+export TEST_SHA="513f854a756dce8265456063af974bdc6593df42"
+assertEquals "md5for an arbitrary release" ${TEST_SHA} $(curl -s ${TEST_URL} | sha1sum)
+
