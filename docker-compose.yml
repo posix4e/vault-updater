@@ -4,11 +4,16 @@ services:
     image: rabbitmq:alpine
   mongodb:
     image: mongo:3.5.10
+  pg:
+    image: postgres:9.6.3-alpine
+    ports:
+        - 5432:5432
   vault:
     build: .
     links:
       - rabbitmq
       - mongodb
+      - pg
     environment:
       - AMQP_URL=amqp://rabbitmq
       - S3_CRASH_KEY=fake

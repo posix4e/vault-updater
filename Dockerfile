@@ -5,5 +5,6 @@ RUN npm install
 ADD config /work/config/
 ADD data /work/data/
 ADD src /work/src/
+ADD integrationTests /work/integrationTests/
 EXPOSE 8192
 CMD npm start

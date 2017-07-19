@@ -1,5 +1,8 @@
 #!/bin/bash
 
+export PGHOST=localhost
+export PGPORT=5432
+export PGUSER=postgres
 echo Setting up database $TEST_DATABASE_NAME
 dropdb $TEST_DATABASE_NAME
 createdb $TEST_DATABASE_NAME
